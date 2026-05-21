@@ -1,10 +1,10 @@
 [package]
-name = "kfs_1"
+name = "kfs_2"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "kfs_1"
+name = "kfs_2"
 crate-type = ["staticlib"]
 
 [profile.dev]

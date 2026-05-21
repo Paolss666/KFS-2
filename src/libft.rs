@@ -8,6 +8,7 @@ static mut CURSOR_ROW: usize = 0;
 pub enum PrintkArg {
     Int(i32),
     Str(&'static [u8]),
+    Hex(u32),
 }
 
 
@@ -86,6 +87,12 @@ pub fn printk(str: &[u8], color: Colors, args: &[PrintkArg]) {
                     }
                     arg_idx += 1;
                 }
+                b'x' => {
+                    if let Some(PrintkArg::Hex(n)) = args.get(arg_idx) {
+                        printk_hex(*n, color);
+                    }
+                    arg_idx += 1;
+                }
                 b'%' => {
                     printk_char(b'%', color);
                 }
@@ -137,6 +144,16 @@ pub fn printk_nbr(n: isize, color: Colors) {
         printk_nbr(n % 10, color);
     } else {
         printk_char(b'0' + n as u8, color);
+    }
+}
+
+pub fn printk_hex(n: u32, color: Colors) {
+    let digits = b"0123456789ABCDEF";
+    printk_char(b'0', color);
+    printk_char(b'x', color);
+    for i in (0..8).rev() {
+        let nibble = ((n >> (i * 4)) & 0xF) as usize;
+        printk_char(digits[nibble], color);
     }
 }
 
