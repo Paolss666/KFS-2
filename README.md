@@ -1,19 +1,19 @@
 # KFS-2
 
-2eme jalon du projet Kernel From Scratch.
+Second milestone of the Kernel From Scratch project.
 
-## Objectifs
+## Objectives
 
-- [x] Create a GDT ( Global Descriptor Table)
-    - [x] Kernel Code 
+- [x] Create a GDT (Global Descriptor Table)
+    - [x] Kernel Code
     - [x] Kernel Data
-    - [x] Kernel stack 
+    - [x] Kernel Stack
     - [x] User Code
-    - [x] User data
-    - [x] User stack
-    - [x] do not exceed 10MB
-- [x] Declare GDT to the BIOS 
-- [x] GDT set in address 0x00000800
+    - [x] User Data
+    - [x] User Stack
+    - [x] Size must not exceed 10 MB
+- [x] Declare GDT to the BIOS
+- [x] GDT placed at address 0x00000800
 
 ## Boot flow
 
@@ -21,16 +21,17 @@
 
 ## Kernel bootable via GRUB
 
-Le kernel doit être chargeable par GRUB en respectant le format Multiboot.
+The kernel must be loadable by GRUB using the Multiboot format.
 
-Documentation utile :
+Reference:
 - https://www.gnu.org/software/grub/manual/multiboot/multiboot.html#OS-image-format
 
 ## ASM bootable base
 
-Le point de départ repose sur un header Multiboot placé dans le binaire afin que GRUB reconnaisse correctement le kernel.
+The entry point relies on a Multiboot header embedded in the binary so that GRUB
+can identify and load the kernel correctly.
 
-### Structure du header Multiboot
+### Multiboot header structure
 
 ```text
 ┌─────────────────────────────────────────────────────┐
@@ -44,16 +45,54 @@ Le point de départ repose sur un header Multiboot placé dans le binaire afin q
 MAGIC + FLAGS + CHECKSUM = 0
 ```
 
-dd defines a double word (long word, 32 bits) 
+`dd` defines a double word (32 bits).
 
-
-section -> the smallest unit of an object file that can be relocated 
+`section` is the smallest unit of an object file that can be relocated.
 
 ## GDT
-On the IA-32 and x86-64 architectures, and more precisely in Protected Mode or Long Mode, Interrupt Service Routines and a good deal of memory management are controlled through tables of descriptors. Each descriptor stores information about a single object (e.g. a service routine, a task, a chunk of code or data) the CPU might need at some time. If you try, for instance, to load a new value into a Segment Register, the CPU needs to perform safety and access control checks to see whether you're actually entitled to access that specific memory area. Once the checks are performed, useful values (such as the lowest and highest addresses) are cached in invisible CPU registers.
 
-On these architectures, there are three of this type of table: The Global Descriptor Table, the Local Descriptor Table and the Interrupt Descriptor Table (which supplants the Interrupt Vector Table). Each table is defined using their size and linear address to the CPU through the LGDT, LLDT, and LIDT instructions respectively. In almost all use cases, these tables are only placed into memory once, at boot time, and then edited later when needed.  
+On IA-32 and x86-64 architectures, in Protected Mode or Long Mode, Interrupt
+Service Routines and memory management are controlled through descriptor tables.
+Each descriptor stores information about a single object (a service routine, a
+task, a chunk of code or data) the CPU might need at some time.
 
+There are three such tables: the Global Descriptor Table (GDT), the Local
+Descriptor Table (LDT), and the Interrupt Descriptor Table (IDT). Each is
+defined to the CPU via its size and linear address using the `LGDT`, `LLDT`, and
+`LIDT` instructions. In practice these tables are loaded once at boot time and
+edited only when needed.
 
-## connect to localhost 
+## Bonus — Shell
+
+A minimalistic debug shell starts automatically after boot.
+
+| Command  | Description              |
+|----------|--------------------------|
+| `help`   | List available commands  |
+| `stack`  | Print kernel stack dump  |
+| `gdt`    | Print GDT layout         |
+| `clear`  | Clear the screen         |
+| `reboot` | Reboot the system        |
+| `halt`   | Halt the CPU             |
+
+### Architecture (SOLID)
+
+| File | Role |
+|------|------|
+| `src/io.rs` | **SRP** — raw port I/O only (`inb` / `outb`) |
+| `src/keyboard.rs` | **DIP** — `KeyboardDriver` trait + `Ps2Keyboard` impl (polling, US layout, shift support) |
+| `src/shell.rs` | **OCP** — `Shell<K: KeyboardDriver>` + static `COMMANDS` table; adding a command = one new entry |
+| `src/libft.rs` | Auto-scroll, `backspace()`, `reset_cursor()`, VGA hardware cursor (ports 0x3D4 / 0x3D5) |
+| `src/gdt.rs` | `pub fn print_info()` used by the `gdt` shell command |
+
+### Scalability for KFS-3
+
+`Shell<K: KeyboardDriver>` uses static dispatch. In KFS-3, implement an
+interrupt-driven `IrqKeyboard` that satisfies `KeyboardDriver` and pass it to
+the shell — no other code changes required.
+
+## Connect to localhost
+
+```
 vncviewer localhost::5900
+```

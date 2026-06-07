@@ -33,6 +33,37 @@ fn make_entry(base: u32, limit: u32, access: u8, gran: u8) -> GdtEntry {
     }
 }
 
+pub fn print_info() {
+    use crate::libft::{printk, printk_str, printk_char, printk_hex};
+    use crate::types::Colors;
+
+    printk(b"\n-- GDT @ 0x00000800 (7 entries, 4 KB granularity) --\n",
+           Colors::LightCyan, &[]);
+
+    let entries: &[(&[u8], u32, Colors)] = &[
+        (b"Null        ", 0x00, Colors::DarkGray),
+        (b"Kernel Code ", 0x08, Colors::LightGreen),
+        (b"Kernel Data ", 0x10, Colors::LightGreen),
+        (b"Kernel Stack", 0x18, Colors::LightGreen),
+        (b"User Code   ", 0x20, Colors::LightBlue),
+        (b"User Data   ", 0x28, Colors::LightBlue),
+        (b"User Stack  ", 0x30, Colors::LightBlue),
+    ];
+
+    for (name, sel, color) in entries {
+        printk(b"  [", Colors::White, &[]);
+        printk_hex(*sel, *color);
+        printk(b"] ", Colors::White, &[]);
+        printk_str(name, *color);
+        if *sel == 0 {
+            printk(b"\n", Colors::White, &[]);
+        } else {
+            printk(b"  base=0x00000000  limit=0xFFFFF\n", Colors::Gray, &[]);
+        }
+    }
+    printk_char(b'\n', Colors::White);
+}
+
 pub fn init() {
     let entries: [GdtEntry; GDT_ENTRIES] = [
         make_entry(0, 0,       0x00, 0x00), // 0x00 Null

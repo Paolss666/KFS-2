@@ -1,4 +1,7 @@
-; Mooltiboot entry point
+; Multiboot entry point
+
+section .note.GNU-stack noalloc noexec nowrite progbits
+
 
 
 MBALIGN equ 1 << 0    ; 0000 0001

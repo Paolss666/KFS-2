@@ -12,5 +12,4 @@ echo "[run.sh] Connect with a VNC client to localhost:5900"
 
 qemu-system-i386 \
     -cdrom "${NAME}.iso" \
-    -vnc :0 \
-    -no-reboot
+    -vnc :0
