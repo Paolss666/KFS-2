@@ -70,12 +70,8 @@ fn cmd_reboot() {
 
 fn cmd_halt() {
     printk(b"Halting...\n", Colors::LightRed, &[]);
-    unsafe {
-        core::arch::asm!("cli", options(nomem, nostack));
-    }
-    loop {
-        unsafe { core::arch::asm!("hlt", options(nomem, nostack)); }
-    }
+    unsafe { core::arch::asm!("cli", options(nomem, nostack));}
+    unsafe { core::arch::asm!("hlt", out("eax") _,options(nostack))}
 }
 
 // ── Shell REPL ────────────────────────────────────────────────────────────

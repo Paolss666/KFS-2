@@ -26,8 +26,6 @@ pub extern "C" fn kernel_main(_magic: u32, _flags: u32) -> ! {
     libft::printk(b"KFS-2  --  GDT & Stack\n", Colors::LightGreen, &[]);
     libft::printk(b"GDT installed at %x\n", Colors::LightCyan, &[Hex(0x00000800)]);
 
-    stack::print_kernel_stack(32);
-
     libft::printk(b"\nKeyboard ready. Type 'help' for commands.\n\n",
                   Colors::Yellow, &[]);
 
