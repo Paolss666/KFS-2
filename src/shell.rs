@@ -4,10 +4,15 @@ use crate::types::Colors;
 
 // ── Command table 
 
+pub enum Flow {
+    Continue,
+    Exit,
+}
+
 pub struct Command {
     pub name:        &'static [u8],
     pub description: &'static [u8],
-    pub run:         fn(),
+    pub run:         fn() -> Flow,
 }
 
 static COMMANDS: &[Command] = &[
@@ -17,11 +22,12 @@ static COMMANDS: &[Command] = &[
     Command { name: b"clear",  description: b"Clear the screen",            run: cmd_clear  },
     Command { name: b"reboot", description: b"Reboot the system",           run: cmd_reboot },
     Command { name: b"halt",   description: b"Halt the CPU",                run: cmd_halt   },
+    Command { name: b"exit",   description: b"Cause the shell to exit",     run: cmd_exit   },
 ];
 
 // ── Command implementations ───────────────────────────────────────────────
 
-fn cmd_help() {
+fn cmd_help() -> Flow {
     printk(b"\nAvailable commands:\n", Colors::LightCyan, &[]);
     for cmd in COMMANDS {
         printk(b"  ", Colors::White, &[]);
@@ -34,22 +40,46 @@ fn cmd_help() {
         printk_char(b'\n', Colors::White);
     }
     printk_char(b'\n', Colors::White);
+    Flow::Continue
 }
 
-fn cmd_stack() {
+fn cmd_exit() -> Flow{
+    Flow::Exit
+}
+
+
+fn shutdown() -> ! {
+    unsafe {
+        // QEMU (>= 2.0): ACPI poweroff
+        core::arch::asm!(
+            "out dx, ax",
+            in("dx") 0x604u16,
+            in("ax") 0x2000u16,
+            options(nomem, nostack, preserves_flags),
+        );
+    }
+    unsafe { core::arch::asm!("cli"); }
+    loop { unsafe { core::arch::asm!("hlt"); } }
+}
+
+
+fn cmd_stack() -> Flow {
     crate::stack::print_kernel_stack(32);
+    Flow::Continue
 }
 
-fn cmd_gdt() {
+fn cmd_gdt() -> Flow {
     crate::gdt::print_info();
+    Flow::Continue
 }
 
-fn cmd_clear() {
+fn cmd_clear() -> Flow {
     clear_screen();
     reset_cursor();
+    Flow::Continue
 }
 
-fn cmd_reboot() {
+fn cmd_reboot() -> Flow {
     printk(b"Rebooting...\n", Colors::LightRed, &[]);
     unsafe {
         // Triple-fault reset: load a null IDT (limit=0) then trigger a
@@ -68,10 +98,10 @@ fn cmd_reboot() {
     loop {}
 }
 
-fn cmd_halt() {
+fn cmd_halt() -> Flow {
     printk(b"Halting...\n", Colors::LightRed, &[]);
-    unsafe { core::arch::asm!("cli", options(nomem, nostack));}
-    unsafe { core::arch::asm!("hlt", out("eax") _,options(nostack))}
+    unsafe { core::arch::asm!("cli", options(nomem, nostack)); }
+    loop { unsafe { core::arch::asm!("hlt", options(nomem, nostack)); } }
 }
 
 // ── Shell REPL ────────────────────────────────────────────────────────────
@@ -97,7 +127,10 @@ impl<K: KeyboardDriver> Shell<K> {
         self.print_prompt();
         loop {
             if let Some(c) = self.keyboard.poll() {
-                self.handle_char(c);
+                if let Flow::Exit = self.handle_char(c) {
+                    printk(b"\nShell exited. Powering off.\n", Colors::LightRed, &[]);
+                    shutdown();
+                }
             }
         }
     }
@@ -106,14 +139,18 @@ impl<K: KeyboardDriver> Shell<K> {
         printk(PROMPT, Colors::LightGreen, &[]);
     }
 
-    fn handle_char(&mut self, c: u8) {
+    fn handle_char(&mut self, c: u8) -> Flow {
         match c {
             b'\n' => {
                 printk_char(b'\n', Colors::White);
-                self.execute();
+                let flow = self.execute();
                 for b in self.buf.iter_mut() { *b = 0; }
                 self.len = 0;
+                if let Flow::Exit = flow {
+                    return Flow::Exit;
+                }
                 self.print_prompt();
+                Flow::Continue
             }
             0x08 => {
                 // Backspace
@@ -122,6 +159,7 @@ impl<K: KeyboardDriver> Shell<K> {
                     self.buf[self.len] = 0;
                     backspace();
                 }
+                Flow::Continue
             }
             c if c >= b' ' && c < 0x7F => {
                 if self.len < INPUT_MAX - 1 {
@@ -129,25 +167,26 @@ impl<K: KeyboardDriver> Shell<K> {
                     self.len += 1;
                     printk_char(c, Colors::White);
                 }
+                Flow::Continue
             }
-            _ => {}
+            _ => Flow::Continue
         }
     }
 
-    fn execute(&self) {
+    fn execute(&self)  -> Flow{
         let input = &self.buf[..self.len];
-        if self.len == 0 { return; }
+        if self.len == 0 { return Flow::Continue; }
 
         for cmd in COMMANDS {
             if bytes_eq(input, cmd.name) {
-                (cmd.run)();
-                return;
+                return (cmd.run)();
             }
         }
 
         printk(b"unknown command: '", Colors::LightRed, &[]);
         printk_str(input, Colors::White);
         printk(b"'  (type 'help')\n", Colors::LightRed, &[]);
+        Flow::Continue
     }
 }
 
