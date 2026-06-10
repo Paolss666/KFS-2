@@ -7,8 +7,6 @@ const KB_STATUS: u16 = 0x64;
 // ── Trait (Dependency-Inversion: Shell depends on this, not on Ps2Keyboard) ──
 
 pub trait KeyboardDriver {
-    /// Return the next printable ASCII byte if a key was just pressed,
-    /// `None` if nothing is available yet.
     fn poll(&self) -> Option<u8>;
 }
 
@@ -71,7 +69,6 @@ impl Ps2Keyboard {
         Ps2Keyboard { shift: Cell::new(false) }
     }
 
-    /// Flush the keyboard buffer (discard stale scancodes from BIOS).
     pub fn flush(&self) {
         unsafe {
             while inb(KB_STATUS) & 0x01 != 0 {

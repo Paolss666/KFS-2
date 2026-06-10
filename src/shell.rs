@@ -84,7 +84,6 @@ fn cmd_reboot() -> Flow {
     unsafe {
         // Triple-fault reset: load a null IDT (limit=0) then trigger a
         // divide-by-zero. With no handler the CPU triple-faults and resets.
-        // Most reliable method in QEMU / KVM — no ACPI or PS/2 controller needed.
         let idt_null: [u8; 6] = [0; 6];
         core::arch::asm!(
             "lidt [{ptr}]",  // load null IDT
